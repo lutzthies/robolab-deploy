@@ -31,6 +31,8 @@ settings_path = os.path.join(home, '.bin', 'settings.json')
 bin_path = os.path.join(home, '.bin')
 settings = dict()
 
+tmux_command = 'tmux -S /tmp/tmux/shared send -t ev3-robolab-startup "reloader.reload(main)" ENTER "main.run()" ENTER; tmux -S /tmp/tmux/shared attach -t ev3-robolab-startup'
+
 class Windows:
 
     def __init__(self, settings):
@@ -50,6 +52,26 @@ class Windows:
             with urllib.request.urlopen(url) as download,\
                     open(self.putty, 'wb') as file:
                 file.write(download.read())
+
+        # Check for backup.txt
+        self.backupfile = os.path.join(bin_path, 'backup.txt')
+        self.execfile = os.path.join(bin_path, 'exec.txt')
+        if not os.path.exists(self.backupfile):
+            with open(self.backupfile, 'w') as new_backup:
+                new_backup.write(raw_backup.format(''))
+
+        # file for putty containing the command that will be executed
+        with open(self.execfile, 'w') as new_exec:
+            # this probably does not work
+            new_exec.write(tmux_command)
+
+    @staticmethod
+    def backup():
+        subprocess.call([os.path.join(bin_path, 'putty.exe'), '-pw',
+                         settings['password'], '-ssh',
+                         'robot@{}'.format(settings['ip']), '-m',
+                         os.path.join(bin_path, 'backup.txt'), '-t'])
+        print('\033[32mDone\033[00m')
 
     @staticmethod
     def copy_files():
@@ -73,6 +95,11 @@ class Unix:
     def __init__(self, settings):
         self.ip = settings['ip']
         self.password = settings['password']
+        # check for backup.sh
+        self.backupfile = os.path.join(bin_path, 'backup.sh')
+        if not os.path.exists(self.backupfile):
+            with open(self.backupfile, 'w') as new_backup:
+                new_backup.write(raw_backup.format('#!/usr/bin/env bash\n\n'))
         # check for sshpass
         try:
             with open(os.devnull, 'w') as devnull:
@@ -102,6 +129,15 @@ https://gist.github.com/arunoda/7790979''')
                 sys.exit(1)
 
     @staticmethod
+    def backup():
+        with open(os.path.join(bin_path, 'backup.sh'), 'r') as backupinput:
+            subprocess.call(['sshpass', '-p', settings['password'], 'ssh', '-o',
+                             'StrictHostKeyChecking=no', 'robot@{}'.format(
+                             settings['ip']), 'bash'],
+                            stdin=backupinput)
+        print('\033[32mDone\033[00m')
+
+    @staticmethod
     def copy_files():
         subprocess.call(['sshpass', '-p', settings['password'], 'scp', '-o',
                          'StrictHostKeyChecking=no', '-r',
@@ -112,21 +148,14 @@ https://gist.github.com/arunoda/7790979''')
 
     @staticmethod
     def execute():
-        subprocess.call(['sshpass', '-p', settings['password'], 'ssh', 'robot@{}'.format(settings['ip']), '-t', 'tmux', '-S', '/tmp/tmux/shared', 'attach', '-t', 'ev3-robolab-startup'])
+        # command = "; ".join((backup_command, tmux_command))
+        command = tmux_command
+        subprocess.call(['sshpass', '-p', settings['password'],
+            'ssh','robot@{}'.format(settings['ip']), '-t', command])
         print('\033[32mJob finished\033[00m')
 
-def backup():
-    '''
-    Creates an exact copy of the src folder as a backup
-    '''
-    # remove existing files
-    if os.path.exists(backup_path):
-        distutils.dir_util.remove_tree(backup_path)
-    distutils.dir_util.copy_tree(src_path, backup_path, update=0)
-    print('\033[32mDone\033[00m')
 
-
-def main(copy=True):
+def main(copy=True, backup=True):
     global settings
     if not os.path.exists(settings_path):
         first_start()
@@ -136,9 +165,10 @@ def main(copy=True):
     print('OS:', settings['os'])
     # switch to platform specific routines
     system = Windows(settings) if settings['os'] == 'Windows' else Unix(settings)
-    if copy:
+    if backup:
         print('\033[33mINFO\033[00m - Backup old files')
-        backup()
+        system.backup()
+    if copy:
         print('\033[33mINFO\033[00m - Copy new files:')
         system.copy_files()
     print('\033[33mINFO\033[00m - Executing')
@@ -164,6 +194,20 @@ def abort(signal, frame):
     sys.exit(0)
 
 signal.signal(signal.SIGINT, abort)
+
+raw_backup = '''{}if  [ ! -d ~/src ]
+    then
+    mkdir src
+fi
+
+if  [ ! -d ~/backup ]
+    then
+    mkdir backup
+fi
+
+cp -rf src backup
+exit
+'''
 
 usage = '''Usage:
 ./ev3deploy [-n] [-e]

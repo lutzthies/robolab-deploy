@@ -5,7 +5,7 @@ Deploy script that syncs files from the local 'src/' folder to a remote LEGO
 MINDSTORMS EV3 brick running the customized operating system 'ev3dev-robolab'.
 Aftwards it attaches to a pre-loaded tmux session running python3 including
 some imported modules, performs a reload on the main.py file in the
-/home/robot/src/ folder and starts execution from main.run()
+/home/robot/src/ folder and starts execution from main.run().
 
 For usage, optional arguments, syntax, et cetera please run this file with the
 flag '--help'.

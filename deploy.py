@@ -4,11 +4,19 @@
 Deploy script that syncs files from the local 'src/' folder to a remote LEGO
 MINDSTORMS EV3 brick running the customized operating system 'ev3dev-robolab'.
 Aftwards it attaches to a pre-loaded tmux session running python3 including
-some imported modules, performs a reload on the main.py file in the src/ folder
-including
+some imported modules, performs a reload on the main.py file in the
+/home/robot/src/ folder and starts execution from main.run()
 
+For usage, optional arguments, syntax, et cetera please run this file with the
+flag '--help'.
 
+This module: https://github.com/7HAL32/robolab-deploy
+The corresponding systemd service: https://github.com/7hAL32/ev3-robolab-startup
+
+Developed as a part of the RoboLab project at TU Dresden.
+(c) 2017 Lutz Thies
 '''
+import argparse
 import os
 import sys
 import json
@@ -19,15 +27,15 @@ import urllib.request
 import distutils.dir_util
 from ip_check import *
 
-__author__ = 'Lutz Thies'
+__author__ = 'Paul Genssler and Lutz Thies'
 __copyright__ = 'Copyright (c) 2017'
-__credits__ = ['Felix Döring', 'Felix Wittwer', 'Lutz Thies']
+__credits__ = ['Felix Döring', 'Paul Genssler', 'Lutz Thies', 'Felix Wittwer']
 
 __license__ = 'MIT'
 __version__ = '1.2.0'
 __maintainer__ = 'Lutz Thies'
 __email__ = 'lutz.thies@tu-dresden.de'
-__status__ = 'Pre-Release'
+__status__ = 'Release'
 
 home = os.path.dirname(os.path.abspath(__file__))
 src_path = os.path.join(os.path.abspath(os.path.join(home, os.pardir)), 'src')
@@ -35,7 +43,13 @@ settings_path = os.path.join(home, '.bin', 'settings.json')
 bin_path = os.path.join(home, '.bin')
 settings = dict()
 
-tmux_command = 'tmux -S /tmp/tmux/shared send -t ev3-robolab-startup "reloader.reload(main)" ENTER "main.run()" ENTER; tmux -S /tmp/tmux/shared attach -t ev3-robolab-startup'
+# the command that reloads the python modules in tmux and attaches to the
+# session afterwards
+tmux_command = 'tmux -S /tmp/tmux/shared send -t ev3-robolab-startup \
+"reloader.enable(blacklist=[\'ev3dev\',\'ev3dev.ev3\',\'ev3\',\'typing\'])" ENTER \
+"reloader.reload(main)" ENTER \
+"main.run()" ENTER; \
+tmux -S /tmp/tmux/shared attach -t ev3-robolab-startup'
 
 class Windows:
 
@@ -45,28 +59,29 @@ class Windows:
         self.pscp = os.path.join(bin_path, 'pscp.exe')
         self.putty = os.path.join(bin_path, 'putty.exe')
 
-        # Download Putty and pscp if they do not exist
+        # check for pscp
         if not os.path.exists(self.pscp):
             url = 'http://robolab.inf.tu-dresden.de/files/pscp.exe'
             with urllib.request.urlopen(url) as download,\
                     open(self.pscp, 'wb') as file:
                 file.write(download.read())
+
+        # check for putty
         if not os.path.exists(self.putty):
             url = 'http://robolab.inf.tu-dresden.de/files/putty.exe'
             with urllib.request.urlopen(url) as download,\
                     open(self.putty, 'wb') as file:
                 file.write(download.read())
 
-        # Check for backup.txt
+        # check for the backup command
         self.backupfile = os.path.join(bin_path, 'backup.txt')
-        self.execfile = os.path.join(bin_path, 'exec.txt')
         if not os.path.exists(self.backupfile):
             with open(self.backupfile, 'w') as new_backup:
                 new_backup.write(raw_backup.format(''))
 
-        # file for putty containing the command that will be executed
+        # check the file containing the command that will be executed
+        self.execfile = os.path.join(bin_path, 'exec.txt')
         with open(self.execfile, 'w') as new_exec:
-            # this probably does not work
             new_exec.write(tmux_command)
 
     @staticmethod
@@ -75,14 +90,14 @@ class Windows:
                          settings['password'], '-ssh',
                          'robot@{}'.format(settings['ip']), '-m',
                          os.path.join(bin_path, 'backup.txt'), '-t'])
-        print('\033[32mDone\033[00m')
+        print('Done')
 
     @staticmethod
     def copy_files():
         subprocess.call([os.path.join(bin_path, 'pscp.exe'), '-pw',
                          settings['password'], '-r', src_path,
                          'robot@{ip}:/home/robot/'.format(ip=settings['ip'])])
-        print('\033[32mDone\033[00m')
+        print('Done')
 
     @staticmethod
     def execute():
@@ -90,8 +105,7 @@ class Windows:
                          settings['password'], '-ssh',
                          'robot@{}'.format(settings['ip']), '-m',
                          os.path.join(bin_path, 'exec.txt'), '-t'])
-        pass
-
+        print('Done')
 
 class Unix:
 
@@ -138,7 +152,7 @@ https://gist.github.com/arunoda/7790979''')
                              'StrictHostKeyChecking=no', 'robot@{}'.format(
                              settings['ip']), 'bash'],
                             stdin=backupinput)
-        print('\033[32mDone\033[00m')
+        print('Done')
 
     @staticmethod
     def copy_files():
@@ -147,34 +161,40 @@ https://gist.github.com/arunoda/7790979''')
                          os.path.join(src_path),
                          'robot@{}:/home/robot/'.format(
             settings['ip'])])
-        print('\033[32mDone\033[00m')
+        print('Done')
 
     @staticmethod
     def execute():
         # command = "; ".join((backup_command, tmux_command))
         command = tmux_command
         subprocess.call(['sshpass', '-p', settings['password'],
-            'ssh','robot@{}'.format(settings['ip']), '-t', command])
-        print('\033[32mJob finished\033[00m')
+                         'ssh','robot@{}'.format(settings['ip']), '-t', command])
+        print('Done')
 
 
-def main(copy=True, backup=True):
+def main(copy=True, backup=False):
+    # get the settings or create new ones
     global settings
     if not os.path.exists(settings_path):
         first_start()
-
     with open(settings_path) as file:
         settings = json.load(file)
-    print('OS:', settings['os'])
-    # switch to platform specific routines
+
+    # get the platform specific routines
+    print('Remembered OS is', settings['os'])
     system = Windows(settings) if settings['os'] == 'Windows' else Unix(settings)
+
     if backup:
-        print('\033[33mINFO\033[00m - Backup old files')
+        print('INFO - Backing up old files...')
         system.backup()
+
     if copy:
-        print('\033[33mINFO\033[00m - Copy new files:')
+        print('INFO - Copying new files...')
         system.copy_files()
-    print('\033[33mINFO\033[00m - Executing')
+
+    print('INFO - Executing code by running main.run()')
+    print('INFO - This will open a tmux session')
+    print('INFO - Dettach by pressing CTRL + B and then D')
     system.execute()
 
 
@@ -193,7 +213,7 @@ def first_start():
 
 
 def abort(signal, frame):
-    print('\r\033[31mJob canceled by user!\033[00m')
+    print('\rJob canceled by user!')
     sys.exit(0)
 
 signal.signal(signal.SIGINT, abort)
@@ -212,28 +232,21 @@ cp -rf src backup
 exit
 '''
 
-usage = '''Usage:
-./ev3deploy [-n] [-e]
-
--n      Create new Config(IP, Password, Main-Script)
--e      Only execute code on Roboter, no data will be copied'''
 
 if __name__ == '__main__':
-    argv = sys.argv
-    if len(argv) == 1:
-        print('\033[33mINFO: If you have to change IP,\n\
-      password or the executed file run\n      .\ev3deploy -n\033[00m')
-        main()
-    elif len(argv) == 2 or len(argv) == 3:
-        match = False
-        if '-n' in argv:
-            match = True
-            first_start()
-        if '-e' in argv:
-            match = True
-            main(copy=False)
-        if not match:
-            print(usage)
-    else:
-        print(usage)
-        sys.exit(0)
+    print('RoboLab deploy script', 'v.' + __version__)
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '-c', '--configure', help='reset and create new configuration',  action='store_true')
+    parser.add_argument(
+        '-e', '--execute-only', help='do not copy files', action='store_false', default=True)
+    parser.add_argument(
+        '-b', '--backup', help='backup files on the brick', action='store_true', default=False)
+    args = parser.parse_args()
+
+    print('INFO: If you have to change the IP or password, run\n\
+      ./deploy.py -n')
+
+    if args.configure:
+        first_start()
+    main(copy=args.execute_only, backup=args.backup)

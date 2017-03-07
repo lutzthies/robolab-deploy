@@ -1,9 +1,14 @@
 #!/usr/bin/python3
 
-"""
+'''
+Deploy script that syncs files from the local 'src/' folder to a remote LEGO
+MINDSTORMS EV3 brick running the customized operating system 'ev3dev-robolab'.
+Aftwards it attaches to a pre-loaded tmux session running python3 including
+some imported modules, performs a reload on the main.py file in the src/ folder
+including
 
-"""
 
+'''
 import os
 import sys
 import json
@@ -14,19 +19,18 @@ import urllib.request
 import distutils.dir_util
 from ip_check import *
 
-__author__ = "Lutz Thies"
-__copyright__ = "Copyright (c) 2017"
-__credits__ = ["Felix Döring", "Felix Wittwer", "Lutz Thies"]
+__author__ = 'Lutz Thies'
+__copyright__ = 'Copyright (c) 2017'
+__credits__ = ['Felix Döring', 'Felix Wittwer', 'Lutz Thies']
 
-__license__ = "MIT"
-__version__ = "1.2.0"
-__maintainer__ = "Lutz Thies"
-__email__ = "lutz.thies@tu-dresden.de"
-__status__ = "Pre-Release"
+__license__ = 'MIT'
+__version__ = '1.2.0'
+__maintainer__ = 'Lutz Thies'
+__email__ = 'lutz.thies@tu-dresden.de'
+__status__ = 'Pre-Release'
 
 home = os.path.dirname(os.path.abspath(__file__))
-src_path = os.path.join(os.path.abspath(os.path.join(home, os.pardir)), 'src/')
-backup_path = os.path.join(home, '.backup')
+src_path = os.path.join(os.path.abspath(os.path.join(home, os.pardir)), 'src')
 settings_path = os.path.join(home, '.bin', 'settings.json')
 bin_path = os.path.join(home, '.bin')
 settings = dict()
@@ -43,12 +47,12 @@ class Windows:
 
         # Download Putty and pscp if they do not exist
         if not os.path.exists(self.pscp):
-            url = 'http://141.76.44.173/files/pscp.exe'
+            url = 'http://robolab.inf.tu-dresden.de/files/pscp.exe'
             with urllib.request.urlopen(url) as download,\
                     open(self.pscp, 'wb') as file:
                 file.write(download.read())
         if not os.path.exists(self.putty):
-            url = 'http://141.76.44.173/files/putty.exe'
+            url = 'http://robolab.inf.tu-dresden.de/files/putty.exe'
             with urllib.request.urlopen(url) as download,\
                     open(self.putty, 'wb') as file:
                 file.write(download.read())
@@ -77,8 +81,7 @@ class Windows:
     def copy_files():
         subprocess.call([os.path.join(bin_path, 'pscp.exe'), '-pw',
                          settings['password'], '-r', src_path,
-                         'robot@{ip}:/home/robot/'.format(ip=settings['ip'],
-                                                          home=home)])
+                         'robot@{ip}:/home/robot/'.format(ip=settings['ip'])])
         print('\033[32mDone\033[00m')
 
     @staticmethod

@@ -38,7 +38,7 @@ __copyright__ = 'Copyright (c) 2017'
 __credits__ = ['Felix Döring', 'Paul Genssler', 'Lutz Thies', 'Felix Wittwer']
 
 __license__ = 'MIT'
-__version__ = '1.3.2'
+__version__ = '1.3.3'
 __maintainer__ = 'Lutz Thies'
 __email__ = 'lutz.thies@tu-dresden.de'
 __status__ = 'Release'
@@ -189,16 +189,16 @@ def main(copy=True, backup=False):
     system = Windows(settings) if settings['os'] == 'Windows' else Unix(settings)
 
     if backup:
-        print('INFO - Backing up old files...')
+        print('Backing up old files...')
         system.backup()
 
     if copy:
-        print('INFO - Copying new files...')
+        print('Copying new files...')
         system.copy_files()
 
-    print('INFO - Executing code by running main.run()')
-    print('INFO - This will open a tmux session')
-    print('INFO - Dettach by pressing CTRL + B and then D')
+    print('Executing code by running main.run()')
+    print('This will open a tmux session')
+    print('Detach by pressing CTRL + B and then D')
     system.execute()
 
 
@@ -248,7 +248,7 @@ if __name__ == '__main__':
         '-b', '--backup', help='backup files on the brick', action='store_true', default=False)
     args = parser.parse_args()
 
-    print('INFO: If you need to change the IP or password, run\n\
+    print('If you need to change the IP address or password, please run\n\
       ./deploy.py -c')
 
     if args.configure:

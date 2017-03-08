@@ -42,7 +42,7 @@ def build_call(password):
     tmux_attach = 'tmux -S /tmp/tmux/shared attach -t ev3-robolab-startup'
 
     command = "; ".join((systemd_command_if, tmux_send + ' ' +
-                         systemd_error + ' ' + tmux_cls, tmux_send + ' ' + systemd_error_print + ' ' + tmux_run,
+                         systemd_error + ' ' + tmux_cls, tmux_send + ' ' + systemd_error_print + ' ' + tmux_run, 'sleep 15s',
                          'else ' + tmux_send + ' ' + tmux_blacklist + ' '+ tmux_reload + ' ' + tmux_cls + ' ' + tmux_run, 'fi',
-                         tmux_attach))
+                        tmux_attach))
     return command

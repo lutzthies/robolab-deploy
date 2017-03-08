@@ -28,6 +28,7 @@ import signal
 import platform
 import subprocess
 import urllib.request
+from getpass import getpass
 
 # our imports
 import remote_routines
@@ -209,7 +210,7 @@ def first_start():
     init_dict = dict()
     init_dict['os'] = platform.system()
     init_dict['ip'] = ip_check()
-    init_dict['password'] = input('Please enter the robots password: ')
+    init_dict['password'] = getpass('Enter the password of the "robot" user: ')
     # create paths and dump the data
     os.makedirs(os.path.join(bin_path), exist_ok=True)
     with open(settings_path, 'w') as dump_file:

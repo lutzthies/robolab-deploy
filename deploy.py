@@ -161,7 +161,6 @@ https://gist.github.com/arunoda/7790979''')
 
     @staticmethod
     def copy_files():
-        return
         subprocess.call(['sshpass', '-p', settings['password'], 'scp', '-o',
                          'StrictHostKeyChecking=no', '-r',
                          os.path.join(src_path),

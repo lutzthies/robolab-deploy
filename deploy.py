@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-'''
+"""
 Deploy script that syncs files from the local 'src/' folder to a remote LEGO
 MINDSTORMS EV3 brick running the customized operating system 'ev3dev-robolab'.
 Aftwards it attaches to a pre-loaded tmux session running python3 including
@@ -18,10 +18,9 @@ The corresponding systemd service: https://github.com/7hAL32/ev3-robolab-startup
 
 Part of the RoboLab project at TU Dresden.
 Copyright (c) 2017 Lutz Thies
-'''
+"""
 
 import argparse
-import distutils.dir_util
 import os
 import sys
 import json
@@ -109,16 +108,19 @@ class Windows:
                          os.path.join(bin_path, 'exec.txt'), '-t'])
         print('Done')
 
+
 class Unix:
 
     def __init__(self, settings):
         self.ip = settings['ip']
         self.password = settings['password']
+
         # check for backup.sh
         self.backupfile = os.path.join(bin_path, 'backup.sh')
         if not os.path.exists(self.backupfile):
             with open(self.backupfile, 'w') as new_backup:
                 new_backup.write(raw_backup.format('#!/usr/bin/env bash\n\n'))
+
         # check for sshpass
         try:
             with open(os.devnull, 'w') as devnull:
@@ -173,6 +175,7 @@ https://gist.github.com/arunoda/7790979''')
                          remote_routines.build_call(settings['password'])])
         print('Done')
 
+
 def main(copy=True, backup=False):
     # get the settings or create new ones
     global settings
@@ -200,9 +203,9 @@ def main(copy=True, backup=False):
 
 
 def first_start():
-    '''
+    """
     Asks the user for necessary information and stores it
-    '''
+    """
     init_dict = dict()
     init_dict['os'] = platform.system()
     init_dict['ip'] = ip_check()

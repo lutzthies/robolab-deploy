@@ -2,9 +2,9 @@ import re
 
 
 def ip_check():
-    '''
+    """
     Asks to enter an IP address and checks its validity
-    '''
+    """
     valid_format = re.compile(r'(\d{1,3}\.){3}\d{1,3}$')
     final = ''
     while True:

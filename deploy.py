@@ -8,15 +8,20 @@ some imported modules, performs a reload on the main.py file in the
 /home/robot/src/ folder and starts execution from main.run().
 
 For usage, optional arguments, syntax, et cetera please run this file with the
-flag '--help'.
+flag '--help', consult the README.md in the robolab-template repository or the
+RoboLab Docs via the campus network of TU Dresden at
+http://robolab.inf.tu-dresden.de
 
 This module: https://github.com/7HAL32/robolab-deploy
+It's usage as a submodule: https://github.com/7HAL32/robolab-template
 The corresponding systemd service: https://github.com/7hAL32/ev3-robolab-startup
 
-Developed as a part of the RoboLab project at TU Dresden.
-(c) 2017 Lutz Thies
+Part of the RoboLab project at TU Dresden.
+Copyright (c) 2017 Lutz Thies
 '''
+
 import argparse
+import distutils.dir_util
 import os
 import sys
 import json
@@ -24,7 +29,9 @@ import signal
 import platform
 import subprocess
 import urllib.request
-import distutils.dir_util
+
+# our imports
+import remote_routines
 from ip_check import *
 
 __author__ = 'Paul Genssler and Lutz Thies'
@@ -32,24 +39,19 @@ __copyright__ = 'Copyright (c) 2017'
 __credits__ = ['Felix Döring', 'Paul Genssler', 'Lutz Thies', 'Felix Wittwer']
 
 __license__ = 'MIT'
-__version__ = '1.2.0'
+__version__ = '1.3.2'
 __maintainer__ = 'Lutz Thies'
 __email__ = 'lutz.thies@tu-dresden.de'
 __status__ = 'Release'
 
+# static global variables
+ROBOLAB_SERVER = 'http://robolab.inf.tu-dresden.de/files/'
 home = os.path.dirname(os.path.abspath(__file__))
 src_path = os.path.join(os.path.abspath(os.path.join(home, os.pardir)), 'src')
 settings_path = os.path.join(home, '.bin', 'settings.json')
 bin_path = os.path.join(home, '.bin')
 settings = dict()
 
-# the command that reloads the python modules in tmux and attaches to the
-# session afterwards
-tmux_command = 'tmux -S /tmp/tmux/shared send -t ev3-robolab-startup \
-"reloader.enable(blacklist=[\'ev3dev\',\'ev3dev.ev3\',\'ev3\',\'typing\'])" ENTER \
-"reloader.reload(main)" ENTER \
-"main.run()" ENTER; \
-tmux -S /tmp/tmux/shared attach -t ev3-robolab-startup'
 
 class Windows:
 
@@ -61,14 +63,14 @@ class Windows:
 
         # check for pscp
         if not os.path.exists(self.pscp):
-            url = 'http://robolab.inf.tu-dresden.de/files/pscp.exe'
+            url = ROBOLAB_SERVER + 'pscp.exe'
             with urllib.request.urlopen(url) as download,\
                     open(self.pscp, 'wb') as file:
                 file.write(download.read())
 
         # check for putty
         if not os.path.exists(self.putty):
-            url = 'http://robolab.inf.tu-dresden.de/files/putty.exe'
+            url = ROBOLAB_SERVER + 'putty.exe'
             with urllib.request.urlopen(url) as download,\
                     open(self.putty, 'wb') as file:
                 file.write(download.read())
@@ -82,7 +84,7 @@ class Windows:
         # check the file containing the command that will be executed
         self.execfile = os.path.join(bin_path, 'exec.txt')
         with open(self.execfile, 'w') as new_exec:
-            new_exec.write(tmux_command)
+            new_exec.write(remote_routines.build_call(settings['password']))
 
     @staticmethod
     def backup():
@@ -128,7 +130,7 @@ class Unix:
                     with open(os.devnull, 'w') as devnull:
                         subprocess.call(
                             ['brew', 'install',
-                             'http://141.76.44.173/files/sshpass.rb'],
+                             ROBOLAB_SERVER + 'sshpass.rb'],
                             stdout=devnull)
                 except FileNotFoundError:
                     print(
@@ -156,6 +158,7 @@ https://gist.github.com/arunoda/7790979''')
 
     @staticmethod
     def copy_files():
+        return
         subprocess.call(['sshpass', '-p', settings['password'], 'scp', '-o',
                          'StrictHostKeyChecking=no', '-r',
                          os.path.join(src_path),
@@ -165,12 +168,10 @@ https://gist.github.com/arunoda/7790979''')
 
     @staticmethod
     def execute():
-        # command = "; ".join((backup_command, tmux_command))
-        command = tmux_command
         subprocess.call(['sshpass', '-p', settings['password'],
-                         'ssh','robot@{}'.format(settings['ip']), '-t', command])
+                         'ssh','robot@{}'.format(settings['ip']), '-t',
+                         remote_routines.build_call(settings['password'])])
         print('Done')
-
 
 def main(copy=True, backup=False):
     # get the settings or create new ones
@@ -244,8 +245,8 @@ if __name__ == '__main__':
         '-b', '--backup', help='backup files on the brick', action='store_true', default=False)
     args = parser.parse_args()
 
-    print('INFO: If you have to change the IP or password, run\n\
-      ./deploy.py -n')
+    print('INFO: If you need to change the IP or password, run\n\
+      ./deploy.py -c')
 
     if args.configure:
         first_start()

@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 """
 Deploy script that syncs files from the local 'src/' folder to a remote LEGO

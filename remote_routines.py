@@ -6,8 +6,6 @@ def build_call(password):
     "reloader.reload(main)" ENTER \
     "main.run()" ENTER; \
     tmux -S /tmp/tmux/shared attach -t ev3-robolab-startup'
-
-    tmux_cls = '"import os" ENTER "os.system(\'clear\')" ENTER'
     #tmux_cls = '"import os" ENTER "os.system(\'tmux -S /tmp/tmux/shared send-keys -t ev3-robolab-startup -R\; send-keys -t ev3-robolab-startup C-l\;\')" ENTER'
 
     # hey, I just met you and this is crazy...
@@ -36,13 +34,15 @@ def build_call(password):
 
     tmux_send = 'tmux -S /tmp/tmux/shared send -t ev3-robolab-startup'
     tmux_blacklist = '"reloader.enable(blacklist=[\'ev3dev\',\'ev3dev.ev3\',\'ev3\',\'typing\'])" ENTER'
-    tmux_reload = '"reloader.reload(main)" ENTER'
-    tmux_run = '"main.run()" ENTER'
 
     tmux_attach = 'tmux -S /tmp/tmux/shared attach -t ev3-robolab-startup'
 
+
     command = "; ".join((systemd_command_if, tmux_send + ' ' +
-                         systemd_error + ' ' + tmux_cls, tmux_send + ' ' + systemd_error_print + ' ' + tmux_run, 'sleep 15s',
-                         'else ' + tmux_send + ' ' + tmux_blacklist + ' '+ tmux_reload + ' ' + tmux_cls + ' ' + tmux_run, 'fi',
+                         systemd_error + ' ' + tmuxify('cls.py'), tmux_send + ' ' + systemd_error_print + ' ' + tmuxify('run.py'), 'sleep 15s',
+                         'else ' + tmux_send + ' ' + tmux_blacklist + ' ' + tmuxify('reload.py'), 'fi',
                         tmux_attach))
     return command
+def tmuxify(file):
+    with open('./tmux_scripts/' + file) as f:
+        return '"' + '" ENTER "'.join(line.strip('\n') for line in f) + '" ENTER ENTER'

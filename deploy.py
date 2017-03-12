@@ -31,7 +31,7 @@ import urllib.request
 from getpass import getpass
 
 # our imports
-import remote_routines
+import tmuxify
 from ip_check import *
 
 __author__ = 'Paul Genssler and Lutz Thies'
@@ -84,7 +84,7 @@ class Windows:
         # check the file containing the command that will be executed
         self.execfile = os.path.join(bin_path, 'exec.txt')
         with open(self.execfile, 'w') as new_exec:
-            new_exec.write(remote_routines.build_call(settings['password']))
+            new_exec.write(tmuxify.build_call(settings['password']))
 
     @staticmethod
     def backup():
@@ -172,7 +172,7 @@ https://gist.github.com/arunoda/7790979''')
     def execute():
         subprocess.call(['sshpass', '-p', settings['password'],
                          'ssh','robot@{}'.format(settings['ip']), '-t',
-                         remote_routines.build_call(settings['password'])])
+                         tmuxify.build_call(settings['password'])])
         print('Done')
 
 

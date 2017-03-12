@@ -12,37 +12,44 @@ This code is junk!!!11!!!1!
 """
 
 def build_call(password):
-    # the command that reloads the python modules in tmux and attaches to the
-    # session afterwards
+    """
+    Builds the huge bash script that seeks for python and tmux running as our service, automatically restarts them in case they are not running and attaches to the session aftwards, then reloading the source files and running them from main.run()
+    """
 
     systemd_command_if = 'if ! (systemctl status ev3-robolab-startup \
     | grep "python" 1> /dev/null); \
-    then echo "{}" | sudo -S systemctl restart ev3-robolab-startup > /dev/null'.format(password)
+    then echo "Whoops, looks like somebody messed with our tmux session"; \
+         echo "Restarting the service (THIS MAY TAKE SOME TIME)"; \
+         echo "{}" | sudo -S -p "" systemctl restart ev3-robolab-startup > /dev/null'.format(password)
 
     command = "; ".join((systemd_command_if,
-                         tmuxify_send(tmuxify('systemd_error.py')
-                                      + ' ' + tmuxify('cls.py')
-                                      + ' ' + tmuxify('systemd_error_print.py')
-                                      + ' ' + tmuxify('run.py')),
+                         tmuxify_send('systemd_error.py',
+                                      'cls.py',
+                                      'systemd_error_print.py',
+                                      'run.py'),
                          'sleep 15s',
-                         'else ' + tmuxify_send(tmuxify('blacklist.py')
-                                                + ' '
-                                                + tmuxify('reload.py')),
+                         'else ' + tmuxify_send('blacklist.py',
+                                                'reload.py'),
                          'fi',
                          tmuxify_attach()))
-    print(command)
     return command
-def tmuxify(file):
-    with open('./tmuxify/' + file) as f:
-        return '"' + '" ENTER "'.join(line.strip('\n') for line in f) + '" ENTER ENTER' # double ENTER needed as python is running in interactive mode
 
-def tmuxify_send(payload):
+def tmuxify(file):
     """
+    Prepare any file to be send by tmuxify_send()
     """
-    return 'tmux -S /tmp/tmux/shared send -t ev3-robolab-startup {}'.format(payload)
+    with open('./tmuxify/' + file) as f:
+        return '"' + '" ENTER "'.join(line.strip('\n') for line in f) + '" ENTER'
+
+def tmuxify_send(*payload):
+    """
+    Send something via tmux :)
+    """
+    chained = " ".join(tmuxify(i) for i in payload)
+    return 'tmux -S /tmp/tmux/shared send -t ev3-robolab-startup {} ENTER'.format(chained) # causes double ENTER needed as python is running in interactive mode
 
 def tmuxify_attach():
     """
-    Command to attach to a tmux session
+    Attach to a tmux session
     """
     return 'tmux -S /tmp/tmux/shared attach -t ev3-robolab-startup'

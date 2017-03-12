@@ -238,6 +238,7 @@ exit
 
 
 if __name__ == '__main__':
+    os.chdir(home)
     print('RoboLab deploy script', 'v.' + __version__)
     parser = argparse.ArgumentParser()
     parser.add_argument(

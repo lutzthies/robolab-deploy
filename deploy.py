@@ -32,7 +32,7 @@ from getpass import getpass
 
 # our imports
 import tmuxify
-from ip_check import *
+from ip_check import ip_check
 
 __author__ = 'Paul Genssler and Lutz Thies'
 __copyright__ = 'Copyright (c) 2017'
@@ -60,20 +60,6 @@ class Windows:
         self.password = settings['password']
         self.pscp = os.path.join(bin_path, 'pscp.exe')
         self.putty = os.path.join(bin_path, 'putty.exe')
-
-        # check for pscp
-        if not os.path.exists(self.pscp):
-            url = ROBOLAB_SERVER + 'pscp.exe'
-            with urllib.request.urlopen(url) as download,\
-                    open(self.pscp, 'wb') as file:
-                file.write(download.read())
-
-        # check for putty
-        if not os.path.exists(self.putty):
-            url = ROBOLAB_SERVER + 'putty.exe'
-            with urllib.request.urlopen(url) as download,\
-                    open(self.putty, 'wb') as file:
-                file.write(download.read())
 
         # check for the backup command
         self.backupfile = os.path.join(bin_path, 'backup.txt')
@@ -109,6 +95,28 @@ class Windows:
                          os.path.join(bin_path, 'exec.txt'), '-t'])
         print('Done')
 
+    @staticmethod
+    def install():
+        check_internet()
+        pscp = os.path.join(bin_path, 'pscp.exe')
+        putty = os.path.join(bin_path, 'putty.exe')
+
+        # check for pscp
+        if not os.path.exists(pscp):
+            url = ROBOLAB_SERVER + 'pscp.exe'
+            with urllib.request.urlopen(url) as download,\
+                    open(pscp, 'wb') as file:
+                file.write(download.read())
+
+        # check for putty
+        if not os.path.exists(putty):
+            url = ROBOLAB_SERVER + 'putty.exe'
+            with urllib.request.urlopen(url) as download,\
+                    open(putty, 'wb') as file:
+                file.write(download.read())
+
+
+
 
 class Unix:
 
@@ -121,34 +129,6 @@ class Unix:
         if not os.path.exists(self.backupfile):
             with open(self.backupfile, 'w') as new_backup:
                 new_backup.write(raw_backup.format('#!/usr/bin/env bash\n\n'))
-
-        # check for sshpass
-        try:
-            with open(os.devnull, 'w') as devnull:
-                subprocess.call(['sshpass', '-V'], stdout=devnull)
-        except FileNotFoundError:
-            if settings['os'] == 'Darwin':
-                try:
-                    print('Installing sshpass')
-                    with open(os.devnull, 'w') as devnull:
-                        subprocess.call(
-                            ['brew', 'install',
-                             ROBOLAB_SERVER + 'sshpass.rb'],
-                            stdout=devnull)
-                except FileNotFoundError:
-                    print(
-                        'Failed\n\nYou have to install Homebrew first \
-(http://brew.sh)')
-                    sys.exit(1)
-            else:
-                print('''Please install sshpass
-
-with apt-get:
-sudo apt-get install sshpass
-
-Further information:
-https://gist.github.com/arunoda/7790979''')
-                sys.exit(1)
 
     @staticmethod
     def backup():
@@ -174,6 +154,39 @@ https://gist.github.com/arunoda/7790979''')
                          'ssh','robot@{}'.format(settings['ip']), '-t',
                          tmuxify.build_call(settings['password'])])
         print('Done')
+
+    @staticmethod
+    def install():
+        check_internet()
+        # check for sshpass
+        try:
+            with open(os.devnull, 'w') as devnull:
+                subprocess.call(['sshpass', '-V'], stdout=devnull)
+        except FileNotFoundError:
+            if "darwin" in sys.platform:
+                try:
+                    print('Installing sshpass')
+                    with open(os.devnull, 'w') as devnull:
+                        subprocess.call(
+                            ['brew', 'install',
+                             ROBOLAB_SERVER + 'sshpass.rb'],
+                            stdout=devnull)
+                except FileNotFoundError:
+                    print(
+                        'Failed\n\nYou have to install Homebrew first \
+(http://brew.sh)')
+                    sys.exit(1)
+            else:
+                print('''Please install sshpass
+
+with apt-get:
+sudo apt-get install sshpass
+
+Further information:
+https://gist.github.com/arunoda/7790979''')
+                sys.exit(1)
+
+
 
 
 def main(copy=True, backup=False):
@@ -202,10 +215,20 @@ def main(copy=True, backup=False):
     system.execute()
 
 
+def check_internet():
+    try:
+        urllib.request.urlopen("http://google.com", timeout=1)
+    except urllib.request.URLError:
+        print("You will need to be connected to the internet!")
+        sys.exit(1)
+
+
 def first_start():
     """
     Asks the user for necessary information and stores it
     """
+    global settings
+    Windows.install() if "win" in sys.platform else Unix.install()
     init_dict = dict()
     init_dict['os'] = platform.system()
     init_dict['ip'] = ip_check()
@@ -219,6 +242,7 @@ def first_start():
 def abort(signal, frame):
     print('\rJob canceled by user!')
     sys.exit(0)
+
 
 signal.signal(signal.SIGINT, abort)
 

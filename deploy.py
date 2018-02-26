@@ -24,6 +24,7 @@ import argparse
 import os
 import sys
 import json
+import shutil
 import signal
 import platform
 import subprocess
@@ -46,10 +47,10 @@ __status__ = 'Release'
 
 # static global variables
 ROBOLAB_SERVER = 'http://robolab.inf.tu-dresden.de/files/'
-home = os.path.dirname(os.path.abspath(__file__))
-src_path = os.path.join(os.path.abspath(os.path.join(home, os.pardir)), 'src')
-settings_path = os.path.join(home, '.bin', 'settings.json')
-bin_path = os.path.join(home, '.bin')
+HOME = os.path.dirname(os.path.abspath(__file__))
+SRC_PATH = os.path.join(os.path.abspath(os.path.join(HOME, os.pardir)), 'src')
+SETTINGS_PATH = os.path.join(HOME, '.bin', 'settings.json')
+BIN_PATH = os.path.join(HOME, '.bin')
 settings = dict()
 
 
@@ -58,48 +59,48 @@ class Windows:
     def __init__(self, settings):
         self.ip = settings['ip']
         self.password = settings['password']
-        self.pscp = os.path.join(bin_path, 'pscp.exe')
-        self.putty = os.path.join(bin_path, 'putty.exe')
+        self.pscp = os.path.join(BIN_PATH, 'pscp.exe')
+        self.putty = os.path.join(BIN_PATH, 'putty.exe')
 
         # check for the backup command
-        self.backupfile = os.path.join(bin_path, 'backup.txt')
+        self.backupfile = os.path.join(BIN_PATH, 'backup.txt')
         if not os.path.exists(self.backupfile):
             with open(self.backupfile, 'w') as new_backup:
                 new_backup.write(raw_backup.format(''))
 
         # check the file containing the command that will be executed
-        self.execfile = os.path.join(bin_path, 'exec.txt')
+        self.execfile = os.path.join(BIN_PATH, 'exec.txt')
         with open(self.execfile, 'w') as new_exec:
             new_exec.write(tmuxify.build_call(settings['password']))
 
     @staticmethod
     def backup():
-        subprocess.call([os.path.join(bin_path, 'putty.exe'), '-pw',
+        subprocess.call([os.path.join(BIN_PATH, 'putty.exe'), '-pw',
                          settings['password'], '-ssh',
                          'robot@{}'.format(settings['ip']), '-m',
-                         os.path.join(bin_path, 'backup.txt'), '-t'])
+                         os.path.join(BIN_PATH, 'backup.txt'), '-t'])
         print('Done')
 
     @staticmethod
     def copy_files():
-        subprocess.call([os.path.join(bin_path, 'pscp.exe'), '-pw',
-                         settings['password'], '-r', src_path,
+        subprocess.call([os.path.join(BIN_PATH, 'pscp.exe'), '-pw',
+                         settings['password'], '-r', SRC_PATH,
                          'robot@{ip}:/home/robot/'.format(ip=settings['ip'])])
         print('Done')
 
     @staticmethod
     def execute():
-        subprocess.call([os.path.join(bin_path, 'putty.exe'), '-pw',
+        subprocess.call([os.path.join(BIN_PATH, 'putty.exe'), '-pw',
                          settings['password'], '-ssh',
                          'robot@{}'.format(settings['ip']), '-m',
-                         os.path.join(bin_path, 'exec.txt'), '-t'])
+                         os.path.join(BIN_PATH, 'exec.txt'), '-t'])
         print('Done')
 
     @staticmethod
     def install():
         check_internet()
-        pscp = os.path.join(bin_path, 'pscp.exe')
-        putty = os.path.join(bin_path, 'putty.exe')
+        pscp = os.path.join(BIN_PATH, 'pscp.exe')
+        putty = os.path.join(BIN_PATH, 'putty.exe')
 
         # check for pscp
         if not os.path.exists(pscp):
@@ -125,14 +126,14 @@ class Unix:
         self.password = settings['password']
 
         # check for backup.sh
-        self.backupfile = os.path.join(bin_path, 'backup.sh')
+        self.backupfile = os.path.join(BIN_PATH, 'backup.sh')
         if not os.path.exists(self.backupfile):
             with open(self.backupfile, 'w') as new_backup:
                 new_backup.write(raw_backup.format('#!/usr/bin/env bash\n\n'))
 
     @staticmethod
     def backup():
-        with open(os.path.join(bin_path, 'backup.sh'), 'r') as backupinput:
+        with open(os.path.join(BIN_PATH, 'backup.sh'), 'r') as backupinput:
             subprocess.call(['sshpass', '-p', settings['password'], 'ssh', '-o',
                              'StrictHostKeyChecking=no', 'robot@{}'.format(
                              settings['ip']), 'bash'],
@@ -143,7 +144,7 @@ class Unix:
     def copy_files():
         subprocess.call(['sshpass', '-p', settings['password'], 'scp', '-o',
                          'StrictHostKeyChecking=no', '-r',
-                         os.path.join(src_path),
+                         os.path.join(SRC_PATH),
                          'robot@{}:/home/robot/'.format(
             settings['ip'])])
         print('Done')
@@ -192,9 +193,9 @@ https://gist.github.com/arunoda/7790979''')
 def main(copy=True, backup=False):
     # get the settings or create new ones
     global settings
-    if not os.path.exists(settings_path):
+    if not os.path.exists(SETTINGS_PATH):
         first_start()
-    with open(settings_path) as file:
+    with open(SETTINGS_PATH) as file:
         settings = json.load(file)
 
     # get the platform specific routines
@@ -220,7 +221,9 @@ def check_internet():
         urllib.request.urlopen("http://google.com", timeout=1)
     except urllib.request.URLError:
         print("You will need to be connected to the internet!")
-        sys.exit(1)
+        print("Please connect to a wifi with an internet connection to download")
+        print("the essential tools and press Enter to proceed...")
+        input()
 
 
 def first_start():
@@ -234,8 +237,8 @@ def first_start():
     init_dict['ip'] = ip_check()
     init_dict['password'] = getpass('Enter the password of the "robot" user: ')
     # create paths and dump the data
-    os.makedirs(os.path.join(bin_path), exist_ok=True)
-    with open(settings_path, 'w') as dump_file:
+    os.makedirs(os.path.join(BIN_PATH), exist_ok=True)
+    with open(SETTINGS_PATH, 'w') as dump_file:
         json.dump(init_dict, dump_file, indent=4)
 
 
@@ -262,7 +265,7 @@ exit
 
 
 if __name__ == '__main__':
-    os.chdir(home)
+    os.chdir(HOME)
     print('RoboLab deploy script', 'v.' + __version__)
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -271,11 +274,24 @@ if __name__ == '__main__':
         '-e', '--execute-only', help='do not copy files', action='store_false', default=True)
     parser.add_argument(
         '-b', '--backup', help='backup files on the brick', action='store_true', default=False)
+    parser.add_argument(
+        '-U', '--update', help='Reload the robolab-deploy', action='store_true', default=False)
     args = parser.parse_args()
 
     print('If you need to change the IP address or password, please run\n\
       ./deploy.py -c')
 
+    if not args.update:
+        main(copy=args.execute_only, backup=args.backup)
+    else:
+        for file in os.listdir(os.getcwd()):
+            filepath = os.path.join(os.getcwd(), file)
+            if os.path.isfile(filepath):
+                os.remove(filepath)
+            else:
+                shutil.rmtree(filepath)
+        os.chdir(os.getcwd() + "/../")
+        os.execv(sys.executable, ["python3"] + [(str(os.getcwd()) + "/deploy.py")])
+
     if args.configure:
         first_start()
-    main(copy=args.execute_only, backup=args.backup)

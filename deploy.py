@@ -37,7 +37,12 @@ from ip_check import ip_check
 
 __author__ = 'Paul Genssler and Lutz Thies'
 __copyright__ = 'Copyright (c) 2017'
-__credits__ = ['Felix Döring', 'Paul Genssler', 'Lutz Thies', 'Felix Wittwer']
+__credits__ = [
+               'Felix Döring',
+               'Paul Genssler',
+               'Lutz Thies',
+               'Felix Wittwer',
+               "Ian Alexander List"]
 
 __license__ = 'MIT'
 __version__ = '1.3.3'
@@ -117,8 +122,6 @@ class Windows:
                 file.write(download.read())
 
 
-
-
 class Unix:
 
     def __init__(self, settings):
@@ -134,19 +137,37 @@ class Unix:
     @staticmethod
     def backup():
         with open(os.path.join(BIN_PATH, 'backup.sh'), 'r') as backupinput:
-            subprocess.call(['sshpass', '-p', settings['password'], 'ssh', '-o',
-                             'StrictHostKeyChecking=no', 'robot@{}'.format(
-                             settings['ip']), 'bash'],
-                            stdin=backupinput)
+            subprocess.call([
+                             'sshpass',
+                             '-p',
+                             settings['password'],
+                             'ssh',
+                             '-o',
+                             'StrictHostKeyChecking=no',
+                             'robot@{}'.format(settings['ip']),
+                             'bash'
+                             ],
+                            stdin=backupinput
+                            )
         print('Done')
 
     @staticmethod
     def copy_files():
-        subprocess.call(['sshpass', '-p', settings['password'], 'scp', '-o',
-                         'StrictHostKeyChecking=no', '-r',
-                         os.path.join(SRC_PATH),
-                         'robot@{}:/home/robot/'.format(
-            settings['ip'])])
+        try:
+            subprocess.call([
+                             'sshpass',
+                             '-p',
+                             settings['password'],
+                             'scp',
+                             '-o',
+                             'StrictHostKeyChecking=no',
+                             '-r',
+                             os.path.join(SRC_PATH),
+                             'robot@{}:/home/robot/'.format(settings['ip'])
+                             ])
+        except OSError:
+            Unix.install()
+            Unix.copy_files()
         print('Done')
 
     @staticmethod
@@ -178,14 +199,30 @@ class Unix:
 (http://brew.sh)')
                     sys.exit(1)
             else:
-                print('''Please install sshpass
-
-with apt-get:
-sudo apt-get install sshpass
-
-Further information:
-https://gist.github.com/arunoda/7790979''')
-                sys.exit(1)
+                pacmans = {
+                    'yum': ['yum', 'install'],
+                    'apt-get': ['apt-get', 'install'],
+                    'pacman': ['pacman', '-S']
+                        }
+                pacman_found = False
+                for pacman in pacmans.keys():
+                    try:
+                        with open(os.devnull, 'r') as devnull:
+                            subprocess.call([pacmans[pacman][0], '-h'],
+                                            stdout=devnull)
+                        subprocess.call([
+                                         'sudo',
+                                         pacmans[pacman][0],
+                                         pacmans[pacman][1],
+                                         'sshpass'
+                                        ])
+                        pacman_found = True
+                    except OSError:
+                        continue
+                if not pacman_found:
+                    print("Your package manager was not found.")
+                    print("Please manually install sshpass and rerun the deploy script")
+                    sys.exit(1)
 
 
 
@@ -195,8 +232,8 @@ def main(copy=True, backup=False):
     global settings
     if not os.path.exists(SETTINGS_PATH):
         first_start()
-    with open(SETTINGS_PATH) as file:
-        settings = json.load(file)
+    with open(SETTINGS_PATH) as s_file:
+        settings = json.load(s_file)
 
     # get the platform specific routines
     print('Remembered OS is', settings['os'])
@@ -221,7 +258,7 @@ def check_internet():
         urllib.request.urlopen("http://google.com", timeout=1)
     except urllib.request.URLError:
         print("You will need to be connected to the internet!")
-        print("Please connect to a wifi with an internet connection to download")
+        print("Please ensure an internet connection to download")
         print("the essential tools and press Enter to proceed...")
         input()
 
@@ -269,13 +306,32 @@ if __name__ == '__main__':
     print('RoboLab deploy script', 'v.' + __version__)
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '-c', '--configure', help='reset and create new configuration',  action='store_true')
+        '-c',
+        '--configure',
+        help='reset and create new configuration',
+        action='store_true'
+    )
     parser.add_argument(
-        '-e', '--execute-only', help='do not copy files', action='store_false', default=True)
+        '-e',
+        '--execute-only',
+        help='do not copy files',
+        action='store_false',
+        default=True
+    )
     parser.add_argument(
-        '-b', '--backup', help='backup files on the brick', action='store_true', default=False)
+        '-b',
+        '--backup',
+        help='backup files on the brick',
+        action='store_true',
+        default=False
+    )
     parser.add_argument(
-        '-U', '--update', help='Reload the robolab-deploy', action='store_true', default=False)
+        '-U',
+        '--update',
+        help='Reload the robolab-deploy',
+        action='store_true',
+        default=False
+    )
     args = parser.parse_args()
 
     print('If you need to change the IP address or password, please run\n\
@@ -291,7 +347,10 @@ if __name__ == '__main__':
             else:
                 shutil.rmtree(filepath)
         os.chdir(os.getcwd() + "/../")
-        os.execv(sys.executable, ["python3"] + [(str(os.getcwd()) + "/deploy.py")])
+        os.execv(
+                 sys.executable,
+                 ["python3"] + [(str(os.getcwd()) + "/deploy.py")]
+        )
 
     if args.configure:
         first_start()

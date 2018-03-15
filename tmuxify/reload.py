@@ -1,10 +1,18 @@
-import os
+import sys, os, traceback
 try:
     reloader.reload(main)
-except Exception as e:
+except:
     absolutely_unused_variable = os.system('clear')
-    print('Reload failed. This exception occured:', e)
+    print('Reload failed.')
+    traceback.print_exc(file=sys.stdout)
 else:
     absolutely_unused_variable = os.system('clear')
     print('Reload successful.')
-    main.run()
+    try:
+        main.run()
+    except:
+        traceback.print_exc(file=sys.stdout)
+    if main.client:
+        main.client.loop_stop()
+    for motor in ev3.list_motors():
+        motor.stop()

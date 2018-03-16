@@ -17,7 +17,6 @@ It's usage as a submodule: https://github.com/7HAL32/robolab-template
 The corresponding systemd service: https://github.com/7hAL32/ev3-robolab-startup
 
 Part of the RoboLab project at TU Dresden.
-Copyright (c) 2017 Lutz Thies
 """
 
 import argparse
@@ -33,16 +32,6 @@ from getpass import getpass
 # our imports
 import tmuxify
 from ip_check import *
-
-__author__ = 'Paul Genssler and Lutz Thies'
-__copyright__ = 'Copyright (c) 2017'
-__credits__ = ['Felix Döring', 'Paul Genssler', 'Lutz Thies', 'Felix Wittwer']
-
-__license__ = 'MIT'
-__version__ = '1.3.3'
-__maintainer__ = 'Lutz Thies'
-__email__ = 'lutz.thies@tu-dresden.de'
-__status__ = 'Release'
 
 # static global variables
 ROBOLAB_SERVER = 'http://robolab.inf.tu-dresden.de/files/'
@@ -162,7 +151,7 @@ https://gist.github.com/arunoda/7790979''')
     @staticmethod
     def copy_files():
         subprocess.call(['sshpass', '-p', settings['password'], 'scp', '-o',
-                         'StrictHostKeyChecking=no', '-r',
+                         'StrictHostKeyChecking=no', '-o', 'ControlMaster=auto', '-o', 'ControlPath=~/.ssh/%r@%h-%p', '-o', 'ControlPersist=6000', '-r',
                          os.path.join(src_path),
                          'robot@{}:/home/robot/'.format(
             settings['ip'])])
@@ -171,7 +160,8 @@ https://gist.github.com/arunoda/7790979''')
     @staticmethod
     def execute():
         subprocess.call(['sshpass', '-p', settings['password'],
-                         'ssh','robot@{}'.format(settings['ip']), '-t',
+                         'ssh', '-o',
+                         'StrictHostKeyChecking=no', '-o', 'ControlMaster=auto', '-o', 'ControlPath=~/.ssh/%r@%h-%p', '-o', 'ControlPersist=6000',                         'robot@{}'.format(settings['ip']), '-t',
                          tmuxify.build_call(settings['password'])])
         print('Done')
 
@@ -239,7 +229,6 @@ exit
 
 if __name__ == '__main__':
     os.chdir(home)
-    print('RoboLab deploy script', 'v.' + __version__)
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '-c', '--configure', help='reset and create new configuration',  action='store_true')

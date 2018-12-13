@@ -34,7 +34,7 @@ import tmuxify
 from ip_check import *
 
 # static global variables
-ROBOLAB_SERVER = 'http://robolab.inf.tu-dresden.de/files/'
+ROBOLAB_SERVER = 'https://robolab.inf.tu-dresden.de/releases/'
 home = os.path.dirname(os.path.abspath(__file__))
 src_path = os.path.join(os.path.abspath(os.path.join(home, os.pardir)), 'src')
 settings_path = os.path.join(home, '.bin', 'settings.json')
